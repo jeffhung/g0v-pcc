@@ -4,9 +4,16 @@ sub tender_parse
 {
 	my $body = shift;
 
+	$body =~ s/\r//g;
 	my @lines = split(/\n/, $body);
 
-	my $i = 0;
+	my $i;
+	my $f_begin = 0;
+	for($i = 0; $i <= $#lines && 0 == $f_begin; $i++)
+	{
+		$f_begin = 1 if($lines[$i] =~ /?砍???);
+	}
+
 	my $f_key = 0;
 	while($i <= $#lines)
 	{
@@ -25,7 +32,6 @@ sub tender_parse
 			}
 			if($key =~ /T11b/)
 			{
-				$key =~ s/[\r\n]//g;
 				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
 				$key = $1;
 				$key =~ s/<[^>]+>//g;
@@ -39,24 +45,30 @@ sub tender_parse
 			$value = $line;
 			if($value !~ /<\/td/)
 			{
+				my $level = 0;
 				do
 				{
 					$i += 1;
 					$line = $lines[$i];
 					$value .= $line;
-				}while ($line !~ /<\/td/ && $i <= $#lines);
+					$level += 1 if($line =~ /<table/);
+					$level -= 1 if($line =~ /<\/table/);
+				}while ((0 != $level || $line !~ /<\/td/) && $i <= $#lines);
 			}
-			if($value =~ /\s*(\S+<br>\S+<br>\S+<br>\S+)\s*/)
+			if($value =~ /(\S+<br\/?>\S+<br\/?>\S+<br\/?>\S+)/)
 			{
 				$section = $1;
-				$section =~ s/<br>//g;
+				$section =~ s/<[^>]+>//g;
+				if($section =~ /.*>(.*)/)
+				{
+					$section = $1;
+				}
 				print "$section\n";
 			}
 			else
 			{
-				$value =~ s/[\r\n]//g;
-				$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-				$value = $1;
+				#$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
+				#$value = $1;
 				$value =~ s/<[^>]+>//g;
 				$value =~ s/\s+/ /g;
 				if(1 == $f_key)
