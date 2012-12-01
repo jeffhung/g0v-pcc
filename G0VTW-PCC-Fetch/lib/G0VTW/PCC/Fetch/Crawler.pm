@@ -1,7 +1,9 @@
 package G0VTW::PCC::Fetch::Crawler;
 
+use utf8;
 use WWW::Mechanize;
 use POSIX;
+use Time::HiRes qw(usleep);
 
 sub iso8601
 {
@@ -34,6 +36,7 @@ sub bot_info_
 		$bot->save_content($save_as);
 		printf("[bot:%s] Saved at %s\n", $ts, $save_as);
 	}
+	usleep((rand() % 100) * 10000);
 }
 
 sub new
@@ -88,14 +91,46 @@ sub craw
 			'tenderName'      => '',                                      # 標案名稱
 			'tenderId'        => '',                                      # 標案案號
 			'tenderWay'       => $TENDER_WAYS->{'tenderway01'}->{value},  # 招標方式
-			'tenderStartDate' => '101/10/01',
-			'tenderEndDate'   => '101/12/01',
+			'tenderStartDate' => '101/11/01',
+			'tenderEndDate'   => '101/11/30',
 			'proctrgCate'     => $proctrgCate->{'engineer'}->{value},     # 標的分類
 		},
 	);
-	bot_info_($bot, 'list.html');
-	my $list_html = $bot->content();
 
+	@page_links = $bot->find_all_links(
+		url_regex => qr|./tender.do\?searchMode=common&searchType=basic&method=search&pageIndex=\d+|,
+	);
+	$last_page_link = pop @page_links;
+	if ($last_page_link->url =~ m/pageIndex=(\d+)$/o) {
+		$last_page_num = $1;
+	} else {
+		die;
+	}
+
+	$pgdn_link = undef;
+	$page_num = 0;
+	while ($page_num <= $last_page_num) {
+		++$page_num;
+		if ($page_num > 1) {
+			print "------------\n";
+			$bot->get("./tender.do\?searchMode=common&searchType=basic&method=search&pageIndex=$page_num");
+		}
+		bot_info_($bot, "cases/list-page$page_num.html");
+
+		@links = $bot->find_all_links(
+			url_regex => qr|../tpam/main/tps/tpam/tpam_tender_detail.do\?searchMode=common&scope=F&primaryKey=\d+|,
+		);
+		foreach $link (@links) {
+			$url = $link->url;
+#			print "$url\n";
+			if ($url =~ m/primaryKey=(\d+)$/o) {
+				$pkey = $1;
+				$bot->get($url);
+				bot_info_($bot, "cases/case$pkey.html");
+				$bot->back();
+			}
+		}
+	}
 }
 
 1;
