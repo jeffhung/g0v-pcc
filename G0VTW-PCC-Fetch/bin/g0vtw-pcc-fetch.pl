@@ -3,6 +3,6 @@
 use G0VTW::PCC::Fetch::Crawler;
 
 $crawler = new G0VTW::PCC::Fetch::Crawler();
-$crawler->crawl();
+$crawler->crawl_announcement();
 
 
