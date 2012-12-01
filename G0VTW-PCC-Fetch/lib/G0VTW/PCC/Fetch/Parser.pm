@@ -29,13 +29,16 @@ sub tender_parse
 					$key .= $line;
 				}while ($line !~ /<\/th/ && $i <= $#lines);
 			}
-			$key =~ s/[\r\n]//g;
-			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-			$key = $1;
-			$key =~ s/<[^>]+>//g;
-			$key =~ s/\s+/ /g;
-			$f_key = 1;
-			print "\t$key\n";
+			if($key =~ /T11b/)
+			{
+				$key =~ s/[\r\n]//g;
+				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+				$key = $1;
+				$key =~ s/<[^>]+>//g;
+				$key =~ s/\s+/ /g;
+				$f_key = 1;
+				print "\t$key\n";
+			}
 		}
 		elsif($line =~ /<td/)
 		{
@@ -46,15 +49,24 @@ sub tender_parse
 				$line = $lines[$i];
 				$value .= $line;
 			}while ($line !~ /<\/td/ && $i <= $#lines);
-			$value =~ s/[\r\n]//g;
-			$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-			$value = $1;
-			$value =~ s/<[^>]+>//g;
-			$value =~ s/\s+/ /g;
-			if(1 == $f_key)
+			if($value =~ /\s*(\S+<br>\S+<br>\S+<br>\S+)\s*/)
 			{
-				$f_key = 0;
-				print "\t\t$value\n";
+				$section = $1;
+				$section =~ s/<br>//g;
+				print "$section\n";
+			}
+			else
+			{
+				$value =~ s/[\r\n]//g;
+				$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
+				$value = $1;
+				$value =~ s/<[^>]+>//g;
+				$value =~ s/\s+/ /g;
+				if(1 == $f_key)
+				{
+					$f_key = 0;
+					print "\t\t$value\n";
+				}
 			}
 		}
 		else
