@@ -12,7 +12,7 @@ sub tender_parse
 	my $lastline = $#lines;
 	for($i = 0; $i <= $lastline; $i++)
 	{
-		if($lines[$i] =~ /公告日/)
+		if($lines[$i] =~ /\d{2,3}\/\d{1,2}\/\d{1,2}/)
 		{
 			$firstline = $i;
 			last;
@@ -86,8 +86,6 @@ sub tender_parse
 			}
 			else
 			{
-				#$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-				#$value = $1;
 				if(1 == $subtable)
 				{
 					parse_subtable($value);
@@ -95,6 +93,8 @@ sub tender_parse
 				else
 				{
 					$value =~ s/\n//g;
+					$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
+					$value = $1;
 					$value =~ s/<[^>]+>//g;
 					$value =~ s/\s+/ /g;
 					if(1 == $f_key)
@@ -116,6 +116,84 @@ sub parse_subtable
 {
 	my $subtable = shift;
 	#print "[[[$subtable]]]\n";
+	my @lines = split(/\n/, $subtable);
+	my $i;
+	my $firstline = 0;
+
+	my $lastline = $#lines;
+	for($i = 0; $i <= $lastline; $i++)
+	{
+		if($lines[$i] =~ /<table/)
+		{
+			$firstline = $i;
+			last;
+		}
+	}
+
+	for(; $i <= $lastline; $i++)
+	{
+		if($lines[$i] =~ /<\/table/)
+		{
+			$lastline = $i;
+			last;
+		}
+	}
+
+	$i = $firstline;
+	my ($f_key, $key, $value);
+	while($i <= $lastline)
+	{
+		my $line = $lines[$i];
+		if($line =~ /<th/)
+		{
+			$key = $line;
+			if($key !~ /<\/th/)
+			{ 
+				do
+				{
+					$i += 1;
+					$line = $lines[$i];
+					$key .= $line;
+				}while ($line !~ /<\/th/ && $i <= $lastline);
+			}
+			if($key =~ /T11b/)
+			{
+				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+				$key = $1;
+				$key =~ s/<[^>]+>//g;
+				$key =~ s/　*//g;
+				$key =~ s/\s+/ /g;
+				$f_key = 1;
+				print "\t\t$key\n";
+			}
+		}
+		elsif($line =~ /<td/)
+		{
+			my $subtable;
+			$value = $line;
+			if($value !~ /<\/td/)
+			{
+				do
+				{
+					$i += 1;
+					$line = $lines[$i];
+					$value .= "$line\n";
+				}while ($line !~ /<\/td/ && $i <= $lastline);
+			}
+			
+			$value =~ s/\n//g;
+			$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
+			$value =~ s/<[^>]+>//g;
+			$value =~ s/　*//g;
+			$value =~ s/\s+/ /g;
+			if(1 == $f_key)
+			{
+				$f_key = 0;
+				print "\t\t\t$value\n";
+			}
+		}
+		$i += 1;
+	}
 }
 
 1;
