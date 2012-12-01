@@ -4,6 +4,8 @@ use utf8;
 use WWW::Mechanize;
 use POSIX;
 use Time::HiRes qw(usleep);
+use File::Path qw( make_path );
+use File::Basename;
 
 sub iso8601
 {
@@ -33,6 +35,10 @@ sub bot_info_
 	printf("-------------------------------------------\n");
 	printf("[bot:%s] URI: %s\n", $ts, $bot->uri());
 	if (defined($save_as)) {
+		# Ensures destination directory exist
+		$dir = dirname($save_as);
+		make_path($dir);
+		# Save the file
 		$bot->save_content($save_as);
 		printf("[bot:%s] Saved at %s\n", $ts, $save_as);
 	}
@@ -44,6 +50,7 @@ sub new
 	my $claz = shift or die;
 	my %opts = @_;
 	return bless {
+		data_dir => $opts{data_dir},
 	}, $claz;
 }
 
@@ -76,28 +83,30 @@ sub crawl_announcement
 	my $self = shift or die;
 	my %opts = @_;
 
+	my $data_dir = "$self->{data_dir}/announcement";
+
 	my $bot = new WWW::Mechanize(autocheck => 1);
 	$bot->get('http://web.pcc.gov.tw/tps/pss/tender.do?method=goSearch&searchMode=common&searchType=basic');
 	bot_info_($bot);
 
-	foreach $way (keys %$TRENDER_WAYS) {
-		next if ($way eq 'trenderway01'); # we've done it
+	foreach $way (keys %$TENDER_WAYS) {
+		next if ($way eq 'tenderway01'); # we've done it
 
 		$bot->submit_form(
 			form_name => 'TenderActionForm',
 			fields => {
 				'method'          => 'search',
 				'searchMethod'    => 'true',
-				'orgName'         => '',                                      # 機關名稱
-				'orgId'           => '',                                      # 機關代碼
+				'orgName'         => '',                                     # 機關名稱
+				'orgId'           => '',                                     # 機關代碼
 				'hid_1'           => '1',
-				'tenderName'      => '',                                      # 標案名稱
-				'tenderId'        => '',                                      # 標案案號
-				'tenderWay'       => $TENDER_WAYS->{$way}->{value},           # 招標方式
-#				'tenderWay'       => $TENDER_WAYS->{'trenderway01'}->{value}, # 招標方式
+				'tenderName'      => '',                                     # 標案名稱
+				'tenderId'        => '',                                     # 標案案號
+				'tenderWay'       => $TENDER_WAYS->{$way}->{value},          # 招標方式
+#				'tenderWay'       => $TENDER_WAYS->{'tenderway01'}->{value}, # 招標方式
 				'tenderStartDate' => '101/11/01',
 				'tenderEndDate'   => '101/11/30',
-#				'proctrgCate'     => $proctrgCate->{'engineer'}->{value},     # 標的分類
+#				'proctrgCate'     => $proctrgCate->{'engineer'}->{value},    # 標的分類
 				'proctrgCate'     => '',
 			},
 		);
@@ -106,10 +115,10 @@ sub crawl_announcement
 			url_regex => qr|./tender.do\?searchMode=common&searchType=basic&method=search&pageIndex=\d+|,
 		);
 		$last_page_link = pop @page_links;
-		if ($last_page_link->url =~ m/pageIndex=(\d+)$/o) {
+		if ($last_page_link && $last_page_link->url =~ m/pageIndex=(\d+)$/o) {
 			$last_page_num = $1;
 		} else {
-			die;
+			$last_page_num = 1;
 		}
 
 		$pgdn_link = undef;
@@ -120,7 +129,7 @@ sub crawl_announcement
 				print "------------\n";
 				$bot->get("./tender.do\?searchMode=common&searchType=basic&method=search&pageIndex=$page_num");
 			}
-			bot_info_($bot, "cases/list-page$page_num.html");
+			bot_info_($bot, "$data_dir/$way/list-page$page_num.html");
 
 			@links = $bot->find_all_links(
 				url_regex => qr|../tpam/main/tps/tpam/tpam_tender_detail.do\?searchMode=common&scope=F&primaryKey=\d+|,
@@ -131,7 +140,7 @@ sub crawl_announcement
 				if ($url =~ m/primaryKey=(\d+)$/o) {
 					$pkey = $1;
 					$bot->get($url);
-					bot_info_($bot, "cases/case$pkey.html");
+					bot_info_($bot, "$data_dir/$way/case$pkey.html");
 					$bot->back();
 				}
 			}
