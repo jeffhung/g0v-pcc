@@ -14,7 +14,7 @@ sub tender_parse
 		if($line =~ /<th/)
 		{
 			$key = $line;
-			if($line !~ /<\/th/)
+			if($key !~ /<\/th/)
 			{ 
 				do
 				{
@@ -37,12 +37,15 @@ sub tender_parse
 		elsif($line =~ /<td/)
 		{
 			$value = $line;
-			do
+			if($value !~ /<\/td/)
 			{
-				$i += 1;
-				$line = $lines[$i];
-				$value .= $line;
-			}while ($line !~ /<\/td/ && $i <= $#lines);
+				do
+				{
+					$i += 1;
+					$line = $lines[$i];
+					$value .= $line;
+				}while ($line !~ /<\/td/ && $i <= $#lines);
+			}
 			if($value =~ /\s*(\S+<br>\S+<br>\S+<br>\S+)\s*/)
 			{
 				$section = $1;
