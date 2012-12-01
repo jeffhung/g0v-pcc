@@ -71,7 +71,7 @@ $proctrgCate = {
 ##
 # $opts{'query_type'}: could be 'basic', 'advanced', or 'update' (only 'basic' implemented so far)
 # $opts{'date_range'}: 
-sub craw
+sub crawl
 {
 	my $self = shift or die;
 	my %opts = @_;
