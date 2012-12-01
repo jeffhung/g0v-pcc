@@ -11,13 +11,7 @@ sub tender_parse
 	while($i <= $#lines)
 	{
 		$line = $lines[$i];
-		if($line =~ /^\s*(\S+<br>\S+<br>\S+<br>\S+)\s*$/)
-		{
-			$section = $1;
-			$section =~ s/<br>//g;
-			print "$section\n";
-		}
-		elsif($line =~ /<th/)
+		if($line =~ /<th/)
 		{
 			$key = $line;
 			if($line !~ /<\/th/)
