@@ -12,7 +12,7 @@ sub tender_parse
 	my $lastline = $#lines;
 	for($i = 0; $i <= $lastline; $i++)
 	{
-		if($lines[$i] =~ /?砍???)
+		if($lines[$i] =~ /公告日/)
 		{
 			$firstline = $i;
 			last;
