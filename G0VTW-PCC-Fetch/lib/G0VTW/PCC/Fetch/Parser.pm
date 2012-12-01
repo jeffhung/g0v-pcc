@@ -8,16 +8,32 @@ sub tender_parse
 	my @lines = split(/\n/, $body);
 
 	my $i;
-	my $f_begin = 0;
-	for($i = 0; $i <= $#lines && 0 == $f_begin; $i++)
+	my $firstline = 0;
+	my $lastline = $#lines;
+	for($i = 0; $i <= $lastline; $i++)
 	{
-		$f_begin = 1 if($lines[$i] =~ /?砍???);
+		if($lines[$i] =~ /?砍???)
+		{
+			$firstline = $i;
+			last;
+		}
 	}
 
-	my $f_key = 0;
-	while($i <= $#lines)
+	for(; $i <= $lastline; $i++)
 	{
-		$line = $lines[$i];
+		if($lines[$i] =~ /history\./)
+		{
+			$lastline = $i;
+			last;
+		}
+	}
+
+	$i = $firstline;
+	my $f_key = 0;
+	my ($section, $key, $value);
+	while($i <= $lastline)
+	{
+		my $line = $lines[$i];
 		if($line =~ /<th/)
 		{
 			$key = $line;
@@ -28,7 +44,7 @@ sub tender_parse
 					$i += 1;
 					$line = $lines[$i];
 					$key .= $line;
-				}while ($line !~ /<\/th/ && $i <= $#lines);
+				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
 			if($key =~ /T11b/)
 			{
@@ -42,18 +58,21 @@ sub tender_parse
 		}
 		elsif($line =~ /<td/)
 		{
+			my $subtable;
 			$value = $line;
 			if($value !~ /<\/td/)
 			{
 				my $level = 0;
+				$subtable = 0;
 				do
 				{
 					$i += 1;
 					$line = $lines[$i];
-					$value .= $line;
+					$value .= "$line\n";
 					$level += 1 if($line =~ /<table/);
+					$subtable = 1 if $level > 0;
 					$level -= 1 if($line =~ /<\/table/);
-				}while ((0 != $level || $line !~ /<\/td/) && $i <= $#lines);
+				}while ((0 != $level || $line !~ /<\/td/) && $i <= $lastline);
 			}
 			if($value =~ /(\S+<br\/?>\S+<br\/?>\S+<br\/?>\S+)/)
 			{
@@ -69,12 +88,20 @@ sub tender_parse
 			{
 				#$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
 				#$value = $1;
-				$value =~ s/<[^>]+>//g;
-				$value =~ s/\s+/ /g;
-				if(1 == $f_key)
+				if(1 == $subtable)
 				{
-					$f_key = 0;
-					print "\t\t$value\n";
+					parse_subtable($value);
+				}
+				else
+				{
+					$value =~ s/\n//g;
+					$value =~ s/<[^>]+>//g;
+					$value =~ s/\s+/ /g;
+					if(1 == $f_key)
+					{
+						$f_key = 0;
+						print "\t\t$value\n";
+					}
 				}
 			}
 		}
@@ -84,6 +111,11 @@ sub tender_parse
 		}
 		$i += 1;
 	}
+}
+sub parse_subtable
+{
+	my $subtable = shift;
+	#print "[[[$subtable]]]\n";
 }
 
 1;
