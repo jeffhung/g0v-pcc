@@ -23,7 +23,8 @@ def parse_inner_table(table)
     new_tenderer_start =( th.match /(?<type>.*標廠商)(?<index>\d+)/) 
     if new_tenderer_start && td == ''
       tenderer_type = new_tenderer_start[:type]
-      json[tenderer_type] ||= [{}]
+      json[tenderer_type] ||= []
+      json[tenderer_type] << {}
       next
     end
 
