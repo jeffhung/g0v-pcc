@@ -143,7 +143,7 @@ sub parse_subtable
 	my $sections = {};
 
 	$i = $firstline;
-	my ($f_key, $section_name, $key, $value);
+	my ($f_key, $section_name, $key, $value, $prepend);
 	while($i <= $lastline)
 	{
 		my $line = $lines[$i];
@@ -199,9 +199,13 @@ sub parse_subtable
 				{
 					$section_name = $key;
 				}
+				elsif($key =~ /得標廠商\d+/)
+				{
+					$prepend = $key;
+				}
 				else
 				{
-					$sections->{$section_name}->{$key} = $value;
+					$sections->{$section_name}->{$prepend . $key} = $value;
 				}
 			}
 		}
