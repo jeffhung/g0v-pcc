@@ -3,33 +3,43 @@ require 'nokogiri'
 require 'yaml'
 require 'json'
 
-Dir.glob('./source/atm*') do |file|
-  
-  puts file
-  doc = Nokogiri::HTML(open(file))
-
-  def t(node)
-    node.text.gsub('　',' ').strip if node
+def t(node)
+  if node
+    text=node.text
+    text.gsub!('　',' ')
+    text.gsub!(/[\n\r\t]/,'')
+    text.strip! 
+    return text 
   end
+end
 
-  def parse_simple_table(table)
-    json={}
-    tenderer=nil
-    table.css('tr').each do |tr|
-      th =t(tr.css("th"))
-      td =t(tr.css("td").first)
-      if th =~ /標廠商\d/ && td == ''
-        json[th]={}
-        tenderer=th
-      end
-      if tenderer
-        (json[tenderer]||={})[th] = td
-      else
-        json[th] = td
-      end
+def parse_inner_table(table)
+  json={}
+  tenderer_type=nil
+  table.css('tr').each do |tr|
+    th =t(tr.css("th"))
+    td =t(tr.css("td").first)
+
+    new_tenderer_start =( th.match /(?<type>.*標廠商)(?<index>\d+)/) 
+    if new_tenderer_start && td == ''
+      tenderer_type = new_tenderer_start[:type]
+      json[tenderer_type] ||= [{}]
+      next
     end
-    json
+
+    if tenderer_type
+      json[tenderer_type].last[th] = td
+    else
+      json[th] = td
+    end
   end
+  json
+end
+
+Dir.glob('./source/atm*') do |source_path|
+  
+  puts source_path
+  doc = Nokogiri::HTML(open(source_path))
 
   json={}
   keys=[]
@@ -53,7 +63,7 @@ Dir.glob('./source/atm*') do |file|
       key=t(tr)
       keys.push key
     elsif tr.css('table').length > 0
-      current_json.merge! parse_simple_table( tr.css('table'))
+      current_json.merge! parse_inner_table( tr.css('table'))
     else
       if t(tr.xpath("th")) != ''
         current_json[t(tr.xpath("th"))] = t(tr.css("td").first)
@@ -61,7 +71,7 @@ Dir.glob('./source/atm*') do |file|
     end
 
   end
-  basname=File.basename(file)
+  basname=File.basename(source_path)
   open(File.join('json', basname),'w'){|f| f.write(JSON.dump(json)) }
   open(File.join('yaml', basname),'w'){|f| f.write(YAML.dump(json)) }
 end
