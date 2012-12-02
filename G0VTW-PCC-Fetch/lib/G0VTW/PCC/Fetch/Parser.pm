@@ -28,9 +28,11 @@ sub tender_parse
 		}
 	}
 
+	my $sections = {};
+
 	$i = $firstline;
 	my $f_key = 0;
-	my ($section, $key, $value);
+	my ($section_name, $key, $value);
 	while($i <= $lastline)
 	{
 		my $line = $lines[$i];
@@ -46,15 +48,12 @@ sub tender_parse
 					$key .= $line;
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
-			if($key =~ /T11b/)
-			{
-				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-				$key = $1;
-				$key =~ s/<[^>]+>//g;
-				$key =~ s/\s+/ /g;
-				$f_key = 1;
-				print "\t$key\n";
-			}
+			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+			$key = $1;
+			$key =~ s/<[^>]+>//g;
+			$key =~ s/\s+/ /g;
+			$f_key = 1;
+			#print "\t$key\n";
 		}
 		elsif($line =~ /<td/)
 		{
@@ -76,19 +75,21 @@ sub tender_parse
 			}
 			if($value =~ /(\S+<br\/?>\S+<br\/?>\S+<br\/?>\S+)/)
 			{
-				$section = $1;
-				$section =~ s/<[^>]+>//g;
-				if($section =~ /.*>(.*)/)
+				$section_name = $1;
+				$section_name =~ s/<[^>]+>//g;
+				if($section_name =~ /.*>(.*)/)
 				{
-					$section = $1;
+					$section_name = $1;
 				}
-				print "$section\n";
+				#print "$section_name\n";
+
+				$sections->{$section_name} = ();
 			}
 			else
 			{
 				if(1 == $subtable)
 				{
-					parse_subtable($value);
+					$sections->{$section_name} = parse_subtable($value);
 				}
 				else
 				{
@@ -100,22 +101,22 @@ sub tender_parse
 					if(1 == $f_key)
 					{
 						$f_key = 0;
-						print "\t\t$value\n";
+						#print "\t\t$value\n";
+
+						$sections->{$section_name}->{$key} = $value;
 					}
 				}
 			}
 		}
-		else
-		{
-			#print "[nonmatch] $line\n";
-		}
 		$i += 1;
 	}
+
+	return $sections;
 }
 sub parse_subtable
 {
 	my $subtable = shift;
-	#print "[[[$subtable]]]\n";
+
 	my @lines = split(/\n/, $subtable);
 	my $i;
 	my $firstline = 0;
@@ -139,8 +140,10 @@ sub parse_subtable
 		}
 	}
 
+	my $sections = {};
+
 	$i = $firstline;
-	my ($f_key, $key, $value);
+	my ($f_key, $section_name, $key, $value);
 	while($i <= $lastline)
 	{
 		my $line = $lines[$i];
@@ -156,16 +159,13 @@ sub parse_subtable
 					$key .= $line;
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
-			if($key =~ /T11b/)
-			{
-				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-				$key = $1;
-				$key =~ s/<[^>]+>//g;
-				$key =~ s/　*//g;
-				$key =~ s/\s+/ /g;
-				$f_key = 1;
-				print "\t\t$key\n";
-			}
+			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+			$key = $1;
+			$key =~ s/<[^>]+>//g;
+			$key =~ s/　*//g;
+			$key =~ s/\s+/ /g;
+			$f_key = 1;
+			#print "\t\t$key\n";
 		}
 		elsif($line =~ /<td/)
 		{
@@ -189,11 +189,26 @@ sub parse_subtable
 			if(1 == $f_key)
 			{
 				$f_key = 0;
-				print "\t\t\t$value\n";
+				#print "\t\t\t$value\n";
+
+				if($key eq '投標廠商家數' || $key eq '決標品項數')
+				{
+					$sections->{$key} = $value;
+				}
+				elsif($key =~ /投標廠商\d+/ || $key =~ /第\d+品項/)
+				{
+					$section_name = $key;
+				}
+				else
+				{
+					$sections->{$section_name}->{$key} = $value;
+				}
 			}
 		}
 		$i += 1;
 	}
+
+	return $sections;
 }
 
 1;
