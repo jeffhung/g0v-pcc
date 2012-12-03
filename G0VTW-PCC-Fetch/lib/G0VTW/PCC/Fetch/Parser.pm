@@ -5,6 +5,32 @@ sub tender_parse
 	my $body = shift;
 	my $tender = body_parse($body);
 
+	if(defined $tender->{'決標品項'})
+	{
+		my $item;
+		foreach $item (keys $tender->{'決標品項'})
+		{
+			if($item =~ /第(\d+)品項/)
+			{
+				my $key;
+				my $item_detail = $tender->{'決標品項'}->{$item};
+				foreach $key (keys %$item_detail)
+				{
+					if($key =~ /(\S*得標廠商\d+)(.*)$/)
+					{
+						my $vendor_key = $1;
+						my $vendor_value = $2;
+						#print "$vendor_key\t$vendor_value\t$item_detail->{$key}\n";
+
+						$item_detail->{$vendor_key} = () if(not defined $item_detail->{$vendor_key});
+						$item_detail->{$vendor_key}->{$vendor_value} = $item_detail->{$key};
+						delete($item_detail->{$key});
+					}
+				}
+			}	
+		}
+	}
+
 	return $tender;
 }
 
