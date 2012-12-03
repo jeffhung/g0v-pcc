@@ -3,6 +3,14 @@ package G0VTW::PCC::Fetch::Parser;
 sub tender_parse
 {
 	my $body = shift;
+	my $tender = body_parse($body);
+
+	return $tender;
+}
+
+sub body_parse
+{
+	my $body = shift;
 
 	$body =~ s/\r//g;
 	my @lines = split(/\n/, $body);
@@ -49,9 +57,7 @@ sub tender_parse
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
 			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-			$key = $1;
-			$key =~ s/<[^>]+>//g;
-			$key =~ s/\s+/ /g;
+			$key = strclean($1);
 			$f_key = 1;
 			#print "\t$key\n";
 		}
@@ -73,10 +79,9 @@ sub tender_parse
 					$level -= 1 if($line =~ /<\/table/);
 				}while ((0 != $level || $line !~ /<\/td/) && $i <= $lastline);
 			}
-			if($value =~ /(\S+<br\/?>\S+<br\/?>\S+<br\/?>\S+)/)
+			if($value =~ /(\S+<br\/?>\S{3}<br\/?>\S{3}<br\/?>\S+)/)
 			{
-				$section_name = $1;
-				$section_name =~ s/<[^>]+>//g;
+				$section_name = strclean($1);
 				if($section_name =~ /.*>(.*)/)
 				{
 					$section_name = $1;
@@ -89,15 +94,16 @@ sub tender_parse
 			{
 				if(1 == $subtable)
 				{
-					$sections->{$section_name} = parse_subtable($value);
+					if($value =~ /(投標廠商|決標品項)/)
+					{
+						$sections->{$section_name} = subtable_parse($value);
+					}
 				}
 				else
 				{
 					$value =~ s/\n//g;
 					$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-					$value = $1;
-					$value =~ s/<[^>]+>//g;
-					$value =~ s/\s+/ /g;
+					$value = strclean($1);
 					if(1 == $f_key)
 					{
 						$f_key = 0;
@@ -113,7 +119,7 @@ sub tender_parse
 
 	return $sections;
 }
-sub parse_subtable
+sub subtable_parse
 {
 	my $subtable = shift;
 
@@ -160,10 +166,7 @@ sub parse_subtable
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
 			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-			$key = $1;
-			$key =~ s/<[^>]+>//g;
-			$key =~ s/　*//g;
-			$key =~ s/\s+/ /g;
+			$key = strclean($1);
 			$f_key = 1;
 			#print "\t\t$key\n";
 		}
@@ -183,9 +186,7 @@ sub parse_subtable
 			
 			$value =~ s/\n//g;
 			$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-			$value =~ s/<[^>]+>//g;
-			$value =~ s/　*//g;
-			$value =~ s/\s+/ /g;
+			$value = strclean($1);
 			if(1 == $f_key)
 			{
 				$f_key = 0;
@@ -213,6 +214,22 @@ sub parse_subtable
 	}
 
 	return $sections;
+}
+
+sub strclean
+{
+	my $string = shift;
+
+	$string =~ s/<[^>]+>//g;
+	$string =~ s/&nbsp;/ /g;
+	$string =~ s/&lt;/</g;
+	$string =~ s/&gt;/>/g;
+	$string =~ s/　//g;
+	$string =~ s/\s+/ /g;
+	$string =~ s/^\s+//;
+	$string =~ s/\s+$//;
+
+	return $string;
 }
 
 1;
