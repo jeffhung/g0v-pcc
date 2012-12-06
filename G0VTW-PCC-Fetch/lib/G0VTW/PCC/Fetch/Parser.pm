@@ -3,6 +3,40 @@ package G0VTW::PCC::Fetch::Parser;
 sub tender_parse
 {
 	my $body = shift;
+	my $tender = body_parse($body);
+
+	if(defined $tender->{'決標品項'})
+	{
+		my $item;
+		foreach $item (keys $tender->{'決標品項'})
+		{
+			if($item =~ /第(\d+)品項/)
+			{
+				my $key;
+				my $item_detail = $tender->{'決標品項'}->{$item};
+				foreach $key (keys %$item_detail)
+				{
+					if($key =~ /(\S*得標廠商\d+)(.*)$/)
+					{
+						my $vendor_key = $1;
+						my $vendor_value = $2;
+						#print "$vendor_key\t$vendor_value\t$item_detail->{$key}\n";
+
+						$item_detail->{$vendor_key} = () if(not defined $item_detail->{$vendor_key});
+						$item_detail->{$vendor_key}->{$vendor_value} = $item_detail->{$key};
+						delete($item_detail->{$key});
+					}
+				}
+			}	
+		}
+	}
+
+	return $tender;
+}
+
+sub body_parse
+{
+	my $body = shift;
 
 	$body =~ s/\r//g;
 	my @lines = split(/\n/, $body);
@@ -28,9 +62,11 @@ sub tender_parse
 		}
 	}
 
+	my $sections = {};
+
 	$i = $firstline;
 	my $f_key = 0;
-	my ($section, $key, $value);
+	my ($section_name, $key, $value);
 	while($i <= $lastline)
 	{
 		my $line = $lines[$i];
@@ -46,15 +82,10 @@ sub tender_parse
 					$key .= $line;
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
-			if($key =~ /T11b/)
-			{
-				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-				$key = $1;
-				$key =~ s/<[^>]+>//g;
-				$key =~ s/\s+/ /g;
-				$f_key = 1;
-				print "\t$key\n";
-			}
+			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+			$key = strclean($1);
+			$f_key = 1;
+			#print "\t$key\n";
 		}
 		elsif($line =~ /<td/)
 		{
@@ -74,48 +105,50 @@ sub tender_parse
 					$level -= 1 if($line =~ /<\/table/);
 				}while ((0 != $level || $line !~ /<\/td/) && $i <= $lastline);
 			}
-			if($value =~ /(\S+<br\/?>\S+<br\/?>\S+<br\/?>\S+)/)
+			if($value =~ /(\S+<br\/?>\S{3}<br\/?>\S{3}<br\/?>\S+)/)
 			{
-				$section = $1;
-				$section =~ s/<[^>]+>//g;
-				if($section =~ /.*>(.*)/)
+				$section_name = strclean($1);
+				if($section_name =~ /.*>(.*)/)
 				{
-					$section = $1;
+					$section_name = $1;
 				}
-				print "$section\n";
+				#print "$section_name\n";
+
+				$sections->{$section_name} = ();
 			}
 			else
 			{
 				if(1 == $subtable)
 				{
-					parse_subtable($value);
+					if($value =~ /(投標廠商|決標品項)/)
+					{
+						$sections->{$section_name} = subtable_parse($value);
+					}
 				}
 				else
 				{
 					$value =~ s/\n//g;
 					$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-					$value = $1;
-					$value =~ s/<[^>]+>//g;
-					$value =~ s/\s+/ /g;
+					$value = strclean($1);
 					if(1 == $f_key)
 					{
 						$f_key = 0;
-						print "\t\t$value\n";
+						#print "\t\t$value\n";
+
+						$sections->{$section_name}->{$key} = $value;
 					}
 				}
 			}
 		}
-		else
-		{
-			#print "[nonmatch] $line\n";
-		}
 		$i += 1;
 	}
+
+	return $sections;
 }
-sub parse_subtable
+sub subtable_parse
 {
 	my $subtable = shift;
-	#print "[[[$subtable]]]\n";
+
 	my @lines = split(/\n/, $subtable);
 	my $i;
 	my $firstline = 0;
@@ -139,8 +172,10 @@ sub parse_subtable
 		}
 	}
 
+	my $sections = {};
+
 	$i = $firstline;
-	my ($f_key, $key, $value);
+	my ($f_key, $section_name, $key, $value, $prepend);
 	while($i <= $lastline)
 	{
 		my $line = $lines[$i];
@@ -156,16 +191,10 @@ sub parse_subtable
 					$key .= $line;
 				}while ($line !~ /<\/th/ && $i <= $lastline);
 			}
-			if($key =~ /T11b/)
-			{
-				$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
-				$key = $1;
-				$key =~ s/<[^>]+>//g;
-				$key =~ s/　*//g;
-				$key =~ s/\s+/ /g;
-				$f_key = 1;
-				print "\t\t$key\n";
-			}
+			$key =~ /<th[^>]*>\s*(.*)\s*<\/th/;
+			$key = strclean($1);
+			$f_key = 1;
+			#print "\t\t$key\n";
 		}
 		elsif($line =~ /<td/)
 		{
@@ -183,17 +212,50 @@ sub parse_subtable
 			
 			$value =~ s/\n//g;
 			$value =~ /<td[^>]*>\s*(.*)\s*<\/td/;
-			$value =~ s/<[^>]+>//g;
-			$value =~ s/　*//g;
-			$value =~ s/\s+/ /g;
+			$value = strclean($1);
 			if(1 == $f_key)
 			{
 				$f_key = 0;
-				print "\t\t\t$value\n";
+				#print "\t\t\t$value\n";
+
+				if($key eq '投標廠商家數' || $key eq '決標品項數')
+				{
+					$sections->{$key} = $value;
+				}
+				elsif($key =~ /投標廠商\d+/ || $key =~ /第\d+品項/)
+				{
+					$section_name = $key;
+				}
+				elsif($key =~ /得標廠商\d+/)
+				{
+					$prepend = $key;
+				}
+				else
+				{
+					$sections->{$section_name}->{$prepend . $key} = $value;
+				}
 			}
 		}
 		$i += 1;
 	}
+
+	return $sections;
+}
+
+sub strclean
+{
+	my $string = shift;
+
+	$string =~ s/<[^>]+>//g;
+	$string =~ s/&nbsp;/ /g;
+	$string =~ s/&lt;/</g;
+	$string =~ s/&gt;/>/g;
+	$string =~ s/　//g;
+	$string =~ s/\s+/ /g;
+	$string =~ s/^\s+//;
+	$string =~ s/\s+$//;
+
+	return $string;
 }
 
 1;

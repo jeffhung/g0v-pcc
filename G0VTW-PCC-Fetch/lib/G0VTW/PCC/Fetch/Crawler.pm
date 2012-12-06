@@ -51,6 +51,7 @@ sub new
 	my %opts = @_;
 	return bless {
 		data_dir => $opts{data_dir},
+		fetched  => 0,
 	}, $claz;
 }
 
@@ -142,6 +143,7 @@ sub crawl_announcement
 					$bot->get($url);
 					bot_info_($bot, "$data_dir/$way/case$pkey.html");
 					$bot->back();
+					$self->{fetched} += 1;
 				}
 			}
 		}
@@ -280,6 +282,7 @@ sub crawl_atm
 					$bot->get($url);
 					bot_info_($bot, "$data_dir/$way/case$pkey.html");
 					$bot->back();
+					$self->{fetched} += 1;
 				}
 			}
 		}
