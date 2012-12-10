@@ -8,7 +8,7 @@ sub tender_parse
 	if(defined $tender->{'決標品項'})
 	{
 		my $item;
-		foreach $item (keys $tender->{'決標品項'})
+		foreach $item (keys %{$tender->{'決標品項'}})
 		{
 			if($item =~ /第(\d+)品項/)
 			{
