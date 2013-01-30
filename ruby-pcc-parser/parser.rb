@@ -37,7 +37,7 @@ def parse_inner_table(table)
   json
 end
 
-Dir.glob('./source/atm*') do |source_path|
+Dir.glob(ARGV[0]) do |source_path|
   
   puts source_path
   doc = Nokogiri::HTML(open(source_path))
@@ -73,6 +73,7 @@ Dir.glob('./source/atm*') do |source_path|
 
   end
   basname=File.basename(source_path)
-  open(File.join('json', basname),'w'){|f| f.write(JSON.dump(json)) }
-  open(File.join('yaml', basname),'w'){|f| f.write(YAML.dump(json)) }
+  puts json
+  #open(File.join('json', basname),'w'){|f| f.write(JSON.dump(json)) }
+  #open(File.join('yaml', basname),'w'){|f| f.write(YAML.dump(json)) }
 end
